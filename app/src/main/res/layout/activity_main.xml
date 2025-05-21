@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FFFFFF"
+    android:gravity="center"
+    android:padding="24dp">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Deteksi Rambu Lalu Lintas"
+        android:textStyle="bold"
+        android:textColor="@android:color/black"
+        android:textSize="22sp"
+        android:layout_marginBottom="20dp" />
+
+    <ImageView
+        android:id="@+id/ivSign"
+        android:layout_width="200dp"
+        android:layout_height="120dp"
+        android:src="@drawable/logoapps"
+        android:layout_marginBottom="24dp"
+        android:scaleType="fitCenter" />
+
+    <Button
+        android:id="@+id/btnMulaiDeteksi"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Mulai Deteksi"
+        android:textColor="@android:color/white"
+        app:backgroundTint="@android:color/holo_red_dark" />
+
+</LinearLayout>
