@@ -28,6 +28,15 @@
             android:layout_marginBottom="12dp"
             android:scaleType="fitCenter" />
 
+        <ImageView
+            android:id="@+id/imageViewResult"
+            android:layout_width="380dp"
+            android:layout_height="520dp"
+            android:layout_marginBottom="12dp"
+            android:scaleType="fitCenter"
+            android:visibility="gone"
+            android:background="#E0E0E0"/>
+
         <!-- Output Deteksi (Teks dan Background Kuning) -->
 
         <!-- Tombol Mulai Deteksi -->
