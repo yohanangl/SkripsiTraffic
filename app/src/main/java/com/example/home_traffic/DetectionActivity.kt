@@ -1,6 +1,7 @@
 package com.example.home_traffic
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -9,13 +10,16 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.speech.tts.TextToSpeech.Engine
 import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.LinearLayout // Import ini untuk zoomButtonContainer
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -44,16 +48,23 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var tvOutput: TextView
     private lateinit var outputBox: View
     private lateinit var imageViewResult: ImageView
+
+    // --- Deklarasi elemen UI Zoom baru ---
+    private lateinit var zoomButtonContainer: LinearLayout
+    private lateinit var btnZoom1x: Button
+    private lateinit var btnZoom2x: Button
+    private lateinit var btnZoom4x: Button
+    // --- Akhir deklarasi UI Zoom baru ---
+
     private val REQUEST_CAMERA_PERMISSION = 10
 
     private var tts: TextToSpeech? = null
 
-    // --- Variabel baru untuk cooldown TTS ---
     private var lastSpokenSign: String? = null
     private var lastSpokenTime: Long = 0L
-    private val TTS_COOLDOWN_MILLIS = 5000L // 5 detik cooldown
-    // --- Akhir variabel baru ---
+    private val TTS_COOLDOWN_MILLIS = 5000L
 
+    private var cameraControl: CameraControl? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,6 +76,13 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         outputBox = findViewById(R.id.outputBox)
         imageViewResult = findViewById(R.id.imageViewResult)
 
+        // --- Inisialisasi elemen UI Zoom ---
+        zoomButtonContainer = findViewById(R.id.zoomButtonContainer)
+        btnZoom1x = findViewById(R.id.btnZoom1x)
+        btnZoom2x = findViewById(R.id.btnZoom2x)
+        btnZoom4x = findViewById(R.id.btnZoom4x)
+        // --- Akhir inisialisasi UI Zoom ---
+
         val btnSelesai = findViewById<Button>(R.id.btnMulaiDeteksi)
         btnSelesai.setOnClickListener {
             finish()
@@ -72,6 +90,7 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         outputBox.visibility = View.GONE
         imageViewResult.visibility = View.GONE
+        zoomButtonContainer.visibility = View.GONE // Sembunyikan zoom buttons sampai kamera siap
 
         tts = TextToSpeech(this, this)
 
@@ -95,6 +114,15 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                 Log.e("TTS", "Bahasa Indonesia tidak didukung atau data bahasa hilang!")
                 Toast.makeText(this, "Bahasa Indonesia untuk TTS tidak tersedia. Coba instal data bahasa dari pengaturan perangkat.", Toast.LENGTH_LONG).show()
+
+                val installIntent = Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)
+                try {
+                    startActivity(installIntent)
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Tidak dapat membuka pengaturan unduhan data TTS.", Toast.LENGTH_LONG).show()
+                    Log.e("TTS", "Gagal membuka intent unduhan data TTS: ${e.message}")
+                }
+
                 val fallbackResult = tts!!.setLanguage(Locale.US)
                 if (fallbackResult == TextToSpeech.LANG_MISSING_DATA || fallbackResult == TextToSpeech.LANG_NOT_SUPPORTED) {
                     Log.e("TTS", "Bahasa Inggris juga tidak didukung!")
@@ -138,9 +166,43 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
             try {
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(
+                val camera = cameraProvider.bindToLifecycle(
                     this, cameraSelector, preview, imageAnalyzer
                 )
+                cameraControl = camera.cameraControl // Dapatkan CameraControl dari objek Camera
+
+                // --- Inisialisasi Tombol Zoom ---
+                val cameraInfo = camera.cameraInfo
+                val zoomState = cameraInfo.zoomState
+
+                zoomState.observe(this) { state ->
+                    // Set visibility tombol zoom
+                    zoomButtonContainer.visibility = View.VISIBLE
+
+                    // Dapatkan min dan max zoom ratio
+                    val minZoom = state.minZoomRatio
+                    val maxZoom = state.maxZoomRatio
+
+                    // Atur OnClickListener untuk setiap tombol
+                    btnZoom1x.setOnClickListener {
+                        val targetZoom = 1.0f // Zoom 1x (normal)
+                        cameraControl?.setZoomRatio(targetZoom.coerceIn(minZoom, maxZoom)) // Pastikan dalam rentang valid
+                    }
+                    btnZoom2x.setOnClickListener {
+                        val targetZoom = 2.0f // Zoom 2x
+                        cameraControl?.setZoomRatio(targetZoom.coerceIn(minZoom, maxZoom))
+                    }
+                    btnZoom4x.setOnClickListener {
+                        val targetZoom = 4.0f // Zoom 4x
+                        cameraControl?.setZoomRatio(targetZoom.coerceIn(minZoom, maxZoom))
+                    }
+
+                    // Anda bisa menambahkan logika untuk menyoroti tombol yang aktif (optional)
+                    // if (state.zoomRatio == 1.0f) btnZoom1x.isSelected = true else btnZoom1x.isSelected = false
+                    // ... dan seterusnya
+                }
+                // --- Akhir Inisialisasi Tombol Zoom ---
+
                 Log.d("DetectionActivity", "Kamera berhasil dimulai.")
             } catch (e: Exception) {
                 Log.e("DetectionActivity", "Kamera gagal dimulai: ${e.message}")
@@ -177,6 +239,7 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                 outputBox.visibility = View.VISIBLE
                                 previewView.visibility = View.GONE
                                 imageViewResult.visibility = View.VISIBLE
+                                zoomButtonContainer.visibility = View.GONE // Sembunyikan tombol zoom saat hasil deteksi muncul
 
                                 val topDetection = it.detections.maxByOrNull { d -> d.confidence }
 
@@ -189,150 +252,122 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
                                     displayImageWithBoxes(bitmapForDisplay, it.detections)
 
-                                    // --- Logika untuk menghindari pengulangan suara ---
                                     val currentTime = System.currentTimeMillis()
                                     if (label != lastSpokenSign || (currentTime - lastSpokenTime > TTS_COOLDOWN_MILLIS)) {
-                                        // Rambu berbeda ATAU rambu sama tapi sudah melewati cooldown
                                         lastSpokenSign = label
                                         lastSpokenTime = currentTime
 
                                         when (label) {
                                             "AreaPutarBalik" -> {
-                                                infoText = "Area Putar Balik."
+                                                infoText = "Area untuk putar balik."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Siapkan lajur untuk putar balik, perhatikan kendaraan lain.")
-                                            }
-                                            "bundaran" -> {
-                                                infoText = "Area Bundaran."
-                                                tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Kurangi kecepatan dan beri prioritas kendaraan dari kiri atau kanan.")
+                                                speakOut("Rambu Area Putar Balik. $infoText")
                                             }
                                             "dilarangBelokKanan" -> {
-                                                infoText = "Dilarang Belok Kanan."
+                                                infoText = "Dilarang belok kanan."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Ikuti jalur lurus.")
+                                                speakOut("Rambu Dilarang Belok Kanan. $infoText")
                                             }
                                             "dilarangBelokKiri" -> {
-                                                infoText = "Dilarang Belok Kiri."
+                                                infoText = "Dilarang belok kiri."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Ikuti jalur lurus.")
+                                                speakOut("Rambu Dilarang Belok Kiri. $infoText")
                                             }
                                             "dilarangBerhenti" -> {
-                                                infoText = "Dilarang Berhenti."
+                                                infoText = "Dilarang berhenti di area ini."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Tetap malaju karena area ini dilarang berhenti.")
+                                                speakOut("Rambu Dilarang Berhenti. $infoText")
                                             }
                                             "dilarangParkir" -> {
-                                                infoText = "Dilarang Parkir."
+                                                infoText = "Dilarang parkir di area ini."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Jaga kelancaran lalu lintas")
+                                                speakOut("Rambu Dilarang Parkir. $infoText")
                                             }
                                             "dilarangPutarBalik" -> {
-                                                infoText = "Dilarang Putar Balik."
+                                                infoText = "Dilarang putar balik."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Teruskan perjalanan dan jaga kelancaran lalu lintas")
+                                                speakOut("Rambu Dilarang Putar Balik. $infoText")
                                             }
                                             "hatihati" -> {
-                                                infoText = "Hati - Hati."
+                                                infoText = "Waspada! Perhatikan sekeliling."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Perhatikan sekeliling jalan dan kecepatan Anda.")
+                                                speakOut("Rambu Hati-Hati. $infoText")
                                             }
                                             "isyaratLaluLintas" -> {
-                                                infoText = "Hati - Hati."
+                                                infoText = "Perhatikan isyarat lampu lalu lintas."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Ikuti aturan lampu lalu lintas, siap berhenti jika perlu.")
+                                                speakOut("Rambu Isyarat Lalu Lintas. $infoText")
                                             }
                                             "jalurKeretaApi" -> {
-                                                infoText = "Jalur Kereta Api."
+                                                infoText = "Waspada perlintasan kereta api."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Waspada lintasan kereta api, perhatikan suara dan sinyal.")
+                                                speakOut("Rambu Jalur Kereta Api. $infoText")
                                             }
                                             "jalurSepeda" -> {
-                                                infoText = "Jalur Sepeda."
+                                                infoText = "Area khusus sepeda."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Berikan ruang bagi pengguna sepeda, hati-hati.")
+                                                speakOut("Rambu Jalur Sepeda. $infoText")
                                             }
                                             "laranganLebih30Km" -> {
-                                                infoText = "Kecepatan Maksimal 30Km"
+                                                infoText = "Kecepatan maksimal 30 kilometer per jam."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Patuhi batas kecepatan dan hati-hati.")
+                                                speakOut("Rambu Larangan Lebih 30 Km. $infoText")
                                             }
                                             "laranganMenyalip" -> {
-                                                infoText = "Dilarang Menyalip"
+                                                infoText = "Dilarang menyalip kendaraan lain."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Utamakan Keselamatan tetaplah di jalur Anda.")
+                                                speakOut("Rambu Larangan Menyalip. $infoText")
                                             }
                                             "pejalanKakiAnakAnak" -> {
-                                                infoText = "Area Pejalan Kaki Anak - Anak"
+                                                infoText = "Waspada anak-anak di area pejalan kaki."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Waspada anak-anak menyeberang, kurangi kecepatan.")
+                                                speakOut("Rambu Pejalan Kaki Anak Anak. $infoText")
                                             }
                                             "penyempitanJalan-jembatan" -> {
-                                                infoText = "Penyempitan Jalan atau terdapat Jembatan."
+                                                infoText = "Jalan menyempit atau ada jembatan."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Kurangi kecepatan, perhatikan lebar jalan, dan berhati-hati.")
+                                                speakOut("Rambu Penyempitan Jalan atau Jembatan. $infoText")
                                             }
                                             "peringatan-pejalanKakiZebraCross" -> {
-                                                infoText = "Area Zebra Cross"
+                                                infoText = "Waspada penyeberangan pejalan kaki (zebra cross)."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Berhenti jika ada pejalan kaki menyeberang.")
+                                                speakOut("Rambu Peringatan Pejalan Kaki Zebra Cross. $infoText")
                                             }
                                             "perintahPejalanKaki" -> {
-                                                infoText = "Pejalan Kaki Wajib Lewat Sini."
+                                                infoText = "Wajib bagi pejalan kaki."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Beri prioritas pada pejalan kaki, pastikan keselamatan mereka.")
+                                                speakOut("Rambu Perintah Pejalan Kaki. $infoText")
                                             }
                                             "persimpanganEmpat" -> {
-                                                infoText = "Persimpangan Empat"
+                                                infoText = "Waspada persimpangan empat."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Kurangi kecepatan dan berhati-hati saat melintas.")
+                                                speakOut("Rambu Persimpangan Empat. $infoText")
                                             }
                                             "persimpanganEmpatPrioritas" -> {
-                                                infoText = "Persimpangan Empat dengan Prioritas."
+                                                infoText = "Persimpangan empat dengan prioritas."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Beri prioritas sesuai aturan persimpangan.")
+                                                speakOut("Rambu Persimpangan Empat Prioritas. $infoText")
                                             }
                                             "persimpanganTigaKanan" -> {
-                                                infoText = "Persimpangan Tiga Kanan"
+                                                infoText = "Waspada persimpangan T-kanan."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Kurangi  kecepatan dan perhatikan lalu lintas dari kanan")
+                                                speakOut("Rambu Persimpangan Tiga Kanan. $infoText")
                                             }
                                             "persimpanganTigaKiri" -> {
-                                                infoText = "Persimpangan Tiga Kiri"
+                                                infoText = "Waspada persimpangan T-kiri."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Kurangi kecepatan dan perhatikan lalu lintas dari kiri.")
+                                                speakOut("Rambu Persimpangan Tiga Kiri. $infoText")
                                             }
                                             "simpangTigaKananPrioritas" -> {
-                                                infoText = "Simpang Tiga Kanan"
+                                                infoText = "Simpang tiga kanan dengan prioritas."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Beri prioritas pada kendaraan dari arah simpang kanan.")
+                                                speakOut("Rambu Simpang Tiga Kanan Prioritas. $infoText")
                                             }
                                             "simpangTigaKiriPrioritas" -> {
-                                                infoText = "Simpang Tiga Kiri"
+                                                infoText = "Simpang tiga kiri dengan prioritas."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Beri prioritas pada kendaraan dari arah simpang kiri.")
+                                                speakOut("Rambu Simpang Tiga Kiri Prioritas. $infoText")
                                             }
-                                            "tikunganGandaKanan" -> {
-                                                infoText = "Tikungan Ganda ke Kanan"
-                                                tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Kurangi kecepatan, perhatikan tikungan berurutan ke kanan.")
-                                            }
-                                            "tikunganKanan" -> {
-                                                infoText = "Tikungan Kanan"
-                                                tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Kurangi kecepatan, perhatikan tikungan ke kanan.")
-                                            }
-                                            "tikunganTajamGandaKanan" -> {
-                                                infoText = "Tikungan Tajam Ganda ke Kanan"
-                                                tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Kurangi kecepatan secara signifikan, perhatikan dua tikungan tajam berurutan ke kanan.")
-                                            }
-                                            "tikunganTajamKiri" -> {
-                                                infoText = "Tikungan Tajam Kiri"
-                                                tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
-                                                speakOut("$infoText. Kurangi kecepatan secara signifikan, perhatikan tikungan tajam ke kiri.")
-                                            }
-
                                             else -> {
                                                 infoText = "Informasi rambu tidak tersedia."
                                                 tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
@@ -341,10 +376,8 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                         }
                                     } else {
                                         Log.d("TTS_COOLDOWN", "Rambu '$label' terdeteksi lagi, tapi masih dalam cooldown.")
-                                        // Jika tidak diucapkan, set teks tetap, tapi jangan panggil speakOut
                                         when (label) {
                                             "AreaPutarBalik" -> infoText = "Area untuk putar balik."
-                                            "bundaran" -> infoText = "Area bundaran"
                                             "dilarangBelokKanan" -> infoText = "Dilarang belok kanan."
                                             "dilarangBelokKiri" -> infoText = "Dilarang belok kiri."
                                             "dilarangBerhenti" -> infoText = "Dilarang berhenti di area ini."
@@ -366,23 +399,18 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                             "persimpanganTigaKiri" -> infoText = "Waspada persimpangan T-kiri."
                                             "simpangTigaKananPrioritas" -> infoText = "Simpang tiga kanan dengan prioritas."
                                             "simpangTigaKiriPrioritas" -> infoText = "Simpang tiga kiri dengan prioritas."
-                                            "tikunganGandaKanan" -> infoText = "Tikungan Ganda ke Kanan."
-                                            "tikunganKanan" -> infoText = "Tikungan ke Kanan."
-                                            "tikunganTajamGandaKanan" -> infoText = "Tikungan tajam ganda ke Kanan."
-                                            "tikunganTajamKiri" -> infoText = "Tikungan tajam ke kiri."
                                             else -> infoText = "Informasi rambu tidak tersedia."
                                         }
                                         tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"
                                     }
-                                    // --- Akhir logika cooldown ---
                                 }
                             } else {
                                 outputBox.visibility = View.GONE
                                 imageViewResult.visibility = View.GONE
                                 previewView.visibility = View.VISIBLE
+                                zoomButtonContainer.visibility = View.VISIBLE // Tampilkan kembali tombol zoom
                                 tvLabel.text = ""
                                 tvOutput.text = "Tidak ada rambu lalu lintas terdeteksi."
-                                // Reset cooldown jika tidak ada rambu terdeteksi
                                 lastSpokenSign = null
                                 lastSpokenTime = 0L
                             }
@@ -394,9 +422,9 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         outputBox.visibility = View.GONE
                         imageViewResult.visibility = View.GONE
                         previewView.visibility = View.VISIBLE
+                        zoomButtonContainer.visibility = View.VISIBLE // Tampilkan kembali tombol zoom
                         tvLabel.text = ""
                         tvOutput.text = "Terjadi kesalahan pada API."
-                        // Reset cooldown jika ada error
                         lastSpokenSign = null
                         lastSpokenTime = 0L
                     }
@@ -408,9 +436,9 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     outputBox.visibility = View.GONE
                     imageViewResult.visibility = View.GONE
                     previewView.visibility = View.VISIBLE
+                    zoomButtonContainer.visibility = View.VISIBLE // Tampilkan kembali tombol zoom
                     tvLabel.text = ""
                     tvOutput.text = "Gagal terhubung ke server."
-                    // Reset cooldown jika ada error
                     lastSpokenSign = null
                     lastSpokenTime = 0L
                 }
@@ -448,39 +476,29 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
 
         imageViewResult.post {
-            val viewWidth = imageViewResult.width.toFloat()
-            val viewHeight = imageViewResult.height.toFloat()
-
-            val bitmapWidth = originalBitmap.width.toFloat()
-            val bitmapHeight = originalBitmap.height.toFloat()
-
-            // Calculate scale factor for fitCenter
-            val scaleX = viewWidth / bitmapWidth
-            val scaleY = viewHeight / bitmapHeight
-            val scale = Math.min(scaleX, scaleY)
-
-            // Calculate offsets to center the scaled bitmap in the ImageView
-            val scaledBitmapWidth = bitmapWidth * scale
-            val scaledBitmapHeight = bitmapHeight * scale
-            val offsetX = (viewWidth - scaledBitmapWidth) / 2f
-            val offsetY = (viewHeight - scaledBitmapHeight) / 2f
+            // Kita sekarang menggambar langsung pada mutableBitmap (salinan dari rotatedBitmap)
+            // yang dimensinya sama dengan gambar yang dikirim ke server.
+            // ImageViewResult akan otomatis menskalakan seluruh bitmap yang diberikan.
+            // Jadi, tidak perlu penskalaan koordinat di sini.
 
             for (detection in detections) {
-                val x1_original = detection.box[0]
-                val y1_original = detection.box[1]
-                val x2_original = detection.box[2]
-                val y2_original = detection.box[3]
+                val x1 = detection.box[0]
+                val y1 = detection.box[1]
+                val x2 = detection.box[2]
+                val y2 = detection.box[3]
 
-                Log.d("BoundingBox", "Original Box from API: x1=$x1_original, y1=$y1_original, x2=$x2_original, y2=$y2_original")
-                Log.d("BoundingBox", "Bitmap for drawing size: ${mutableBitmap.width}x${mutableBitmap.height}")
+                Log.d("BoundingBox", "Final Box on Bitmap: x1=$x1, y1=$y1, x2=$x2, y2=$y2 " +
+                        "Bitmap size: ${mutableBitmap.width}x${mutableBitmap.height}")
 
-                // Draw bounding box directly on mutableBitmap
-                canvas.drawRect(x1_original, y1_original, x2_original, y2_original, paint)
+                // Gambar bounding box
+                canvas.drawRect(x1, y1, x2, y2, paint)
 
+                // Gambar teks
                 val text = "${detection.class_name} (${String.format("%.2f", detection.confidence)})"
                 val textWidth = textPaint.measureText(text)
 
-                var textX = x1_original
+                var textX = x1
+                // Sesuaikan posisi teks agar tidak keluar dari batas bitmap
                 if (textX + textWidth > mutableBitmap.width) {
                     textX = mutableBitmap.width - textWidth - 5f
                 }
@@ -488,12 +506,12 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     textX = 5f
                 }
 
-                var textY = y1_original - 10f
+                var textY = y1 - 10f
                 if (textY < textPaint.textSize) {
-                    textY = y2_original + textPaint.textSize + 10f
+                    textY = y2 + textPaint.textSize + 10f
                 }
                 if (textY > mutableBitmap.height - 5f) {
-                    textY = y1_original - 10f
+                    textY = y1 - 10f
                 }
 
                 canvas.drawText(text, textX, textY, textPaint)
