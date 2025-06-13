@@ -15,7 +15,7 @@ import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
-import android.widget.LinearLayout // Import ini untuk zoomButtonContainer
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -40,6 +40,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
 import java.util.Locale
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean // Import ini
 
 class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
@@ -49,22 +50,25 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var outputBox: View
     private lateinit var imageViewResult: ImageView
 
-    // --- Deklarasi elemen UI Zoom baru ---
     private lateinit var zoomButtonContainer: LinearLayout
     private lateinit var btnZoom1x: Button
     private lateinit var btnZoom2x: Button
     private lateinit var btnZoom4x: Button
-    // --- Akhir deklarasi UI Zoom baru ---
 
     private val REQUEST_CAMERA_PERMISSION = 10
 
     private var tts: TextToSpeech? = null
 
-    private var lastSpokenSign: String? = null
-    private var lastSpokenTime: Long = 0L
-    private val TTS_COOLDOWN_MILLIS = 5000L
+    private val spokenSigns = mutableSetOf<String>()
 
     private var cameraControl: CameraControl? = null
+
+    // --- Variabel baru untuk mengontrol frekuensi pengiriman gambar ---
+    private val isProcessingImage = AtomicBoolean(false)
+    private val IMAGE_PROCESSING_COOLDOWN_MILLIS = 1000L // Kirim gambar setiap 1 detik
+    private var lastImageSentTime: Long = 0L
+    // --- Akhir variabel baru ---
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,12 +80,10 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         outputBox = findViewById(R.id.outputBox)
         imageViewResult = findViewById(R.id.imageViewResult)
 
-        // --- Inisialisasi elemen UI Zoom ---
         zoomButtonContainer = findViewById(R.id.zoomButtonContainer)
         btnZoom1x = findViewById(R.id.btnZoom1x)
         btnZoom2x = findViewById(R.id.btnZoom2x)
         btnZoom4x = findViewById(R.id.btnZoom4x)
-        // --- Akhir inisialisasi UI Zoom ---
 
         val btnSelesai = findViewById<Button>(R.id.btnMulaiDeteksi)
         btnSelesai.setOnClickListener {
@@ -90,7 +92,7 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         outputBox.visibility = View.GONE
         imageViewResult.visibility = View.GONE
-        zoomButtonContainer.visibility = View.GONE // Sembunyikan zoom buttons sampai kamera siap
+        zoomButtonContainer.visibility = View.GONE
 
         tts = TextToSpeech(this, this)
 
@@ -154,11 +156,23 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             }
 
             val imageAnalyzer = ImageAnalysis.Builder()
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_BLOCK_PRODUCER)
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_BLOCK_PRODUCER) // Ini penting untuk mengelola antrean frame
                 .build()
                 .also {
                     it.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
-                        sendImageToApi(imageProxy)
+                        val currentTime = System.currentTimeMillis()
+                        // Hanya proses gambar jika tidak sedang ada proses DAN sudah melewati cooldown
+                        if (!isProcessingImage.get() && (currentTime - lastImageSentTime > IMAGE_PROCESSING_COOLDOWN_MILLIS)) {
+                            isProcessingImage.set(true) // Set flag sedang memproses
+                            lastImageSentTime = currentTime // Catat waktu pengiriman
+
+                            sendImageToApi(imageProxy) {
+                                // Callback ini dipanggil setelah proses API selesai atau gagal
+                                isProcessingImage.set(false) // Reset flag
+                            }
+                        } else {
+                            imageProxy.close() // Penting: tutup ImageProxy jika tidak digunakan
+                        }
                     }
                 }
 
@@ -169,39 +183,30 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val camera = cameraProvider.bindToLifecycle(
                     this, cameraSelector, preview, imageAnalyzer
                 )
-                cameraControl = camera.cameraControl // Dapatkan CameraControl dari objek Camera
+                cameraControl = camera.cameraControl
 
-                // --- Inisialisasi Tombol Zoom ---
                 val cameraInfo = camera.cameraInfo
                 val zoomState = cameraInfo.zoomState
 
                 zoomState.observe(this) { state ->
-                    // Set visibility tombol zoom
                     zoomButtonContainer.visibility = View.VISIBLE
 
-                    // Dapatkan min dan max zoom ratio
                     val minZoom = state.minZoomRatio
                     val maxZoom = state.maxZoomRatio
 
-                    // Atur OnClickListener untuk setiap tombol
                     btnZoom1x.setOnClickListener {
-                        val targetZoom = 1.0f // Zoom 1x (normal)
-                        cameraControl?.setZoomRatio(targetZoom.coerceIn(minZoom, maxZoom)) // Pastikan dalam rentang valid
+                        val targetZoom = 1.0f
+                        cameraControl?.setZoomRatio(targetZoom.coerceIn(minZoom, maxZoom))
                     }
                     btnZoom2x.setOnClickListener {
-                        val targetZoom = 2.0f // Zoom 2x
+                        val targetZoom = 2.0f
                         cameraControl?.setZoomRatio(targetZoom.coerceIn(minZoom, maxZoom))
                     }
                     btnZoom4x.setOnClickListener {
-                        val targetZoom = 4.0f // Zoom 4x
+                        val targetZoom = 4.0f
                         cameraControl?.setZoomRatio(targetZoom.coerceIn(minZoom, maxZoom))
                     }
-
-                    // Anda bisa menambahkan logika untuk menyoroti tombol yang aktif (optional)
-                    // if (state.zoomRatio == 1.0f) btnZoom1x.isSelected = true else btnZoom1x.isSelected = false
-                    // ... dan seterusnya
                 }
-                // --- Akhir Inisialisasi Tombol Zoom ---
 
                 Log.d("DetectionActivity", "Kamera berhasil dimulai.")
             } catch (e: Exception) {
@@ -211,7 +216,8 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun sendImageToApi(imageProxy: ImageProxy) {
+    // Ubah tanda tangan fungsi untuk menerima callback onComplete
+    private fun sendImageToApi(imageProxy: ImageProxy, onComplete: () -> Unit) {
         val originalBitmap = imageProxy.toBitmap()
         val rotatedBitmap = rotateBitmap(originalBitmap, imageProxy.imageInfo.rotationDegrees)
 
@@ -219,10 +225,11 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val bitmapForDisplay = rotatedBitmap.copy(bitmapConfig, true)
 
         val byteArrayOutputStream = ByteArrayOutputStream()
-        rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream)
+        // Mengurangi kualitas kompresi JPEG untuk mengurangi ukuran dan waktu transmisi
+        rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 70, byteArrayOutputStream) // Dari 80 ke 70
         val imageBytes = byteArrayOutputStream.toByteArray()
 
-        imageProxy.close()
+        imageProxy.close() // Tutup ImageProxy sesegera mungkin
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -239,7 +246,7 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                 outputBox.visibility = View.VISIBLE
                                 previewView.visibility = View.GONE
                                 imageViewResult.visibility = View.VISIBLE
-                                zoomButtonContainer.visibility = View.GONE // Sembunyikan tombol zoom saat hasil deteksi muncul
+                                zoomButtonContainer.visibility = View.GONE
 
                                 val topDetection = it.detections.maxByOrNull { d -> d.confidence }
 
@@ -252,10 +259,8 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
                                     displayImageWithBoxes(bitmapForDisplay, it.detections)
 
-                                    val currentTime = System.currentTimeMillis()
-                                    if (label != lastSpokenSign || (currentTime - lastSpokenTime > TTS_COOLDOWN_MILLIS)) {
-                                        lastSpokenSign = label
-                                        lastSpokenTime = currentTime
+                                    if (!spokenSigns.contains(label)) {
+                                        spokenSigns.add(label)
 
                                         when (label) {
                                             "AreaPutarBalik" -> {
@@ -375,7 +380,7 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                             }
                                         }
                                     } else {
-                                        Log.d("TTS_COOLDOWN", "Rambu '$label' terdeteksi lagi, tapi masih dalam cooldown.")
+                                        Log.d("TTS_ONCE", "Rambu '$label' terdeteksi lagi, tapi sudah pernah diucapkan.")
                                         when (label) {
                                             "AreaPutarBalik" -> infoText = "Area untuk putar balik."
                                             "dilarangBelokKanan" -> infoText = "Dilarang belok kanan."
@@ -408,11 +413,10 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                 outputBox.visibility = View.GONE
                                 imageViewResult.visibility = View.GONE
                                 previewView.visibility = View.VISIBLE
-                                zoomButtonContainer.visibility = View.VISIBLE // Tampilkan kembali tombol zoom
+                                zoomButtonContainer.visibility = View.VISIBLE
                                 tvLabel.text = ""
                                 tvOutput.text = "Tidak ada rambu lalu lintas terdeteksi."
-                                lastSpokenSign = null
-                                lastSpokenTime = 0L
+                                spokenSigns.clear() // Hapus semua rambu yang sudah diucapkan ketika tidak ada deteksi
                             }
                         }
                     } else {
@@ -422,11 +426,10 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         outputBox.visibility = View.GONE
                         imageViewResult.visibility = View.GONE
                         previewView.visibility = View.VISIBLE
-                        zoomButtonContainer.visibility = View.VISIBLE // Tampilkan kembali tombol zoom
+                        zoomButtonContainer.visibility = View.VISIBLE
                         tvLabel.text = ""
                         tvOutput.text = "Terjadi kesalahan pada API."
-                        lastSpokenSign = null
-                        lastSpokenTime = 0L
+                        spokenSigns.clear() // Hapus semua rambu yang sudah diucapkan saat ada error
                     }
                 }
             } catch (e: Exception) {
@@ -436,12 +439,14 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     outputBox.visibility = View.GONE
                     imageViewResult.visibility = View.GONE
                     previewView.visibility = View.VISIBLE
-                    zoomButtonContainer.visibility = View.VISIBLE // Tampilkan kembali tombol zoom
+                    zoomButtonContainer.visibility = View.VISIBLE
                     tvLabel.text = ""
                     tvOutput.text = "Gagal terhubung ke server."
-                    lastSpokenSign = null
-                    lastSpokenTime = 0L
+                    spokenSigns.clear() // Hapus semua rambu yang sudah diucapkan saat ada error
                 }
+            } finally {
+                // Pastikan callback onComplete dipanggil di sini untuk mereset AtomicBoolean
+                onComplete()
             }
         }
     }
@@ -476,11 +481,6 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
 
         imageViewResult.post {
-            // Kita sekarang menggambar langsung pada mutableBitmap (salinan dari rotatedBitmap)
-            // yang dimensinya sama dengan gambar yang dikirim ke server.
-            // ImageViewResult akan otomatis menskalakan seluruh bitmap yang diberikan.
-            // Jadi, tidak perlu penskalaan koordinat di sini.
-
             for (detection in detections) {
                 val x1 = detection.box[0]
                 val y1 = detection.box[1]
@@ -490,15 +490,12 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 Log.d("BoundingBox", "Final Box on Bitmap: x1=$x1, y1=$y1, x2=$x2, y2=$y2 " +
                         "Bitmap size: ${mutableBitmap.width}x${mutableBitmap.height}")
 
-                // Gambar bounding box
                 canvas.drawRect(x1, y1, x2, y2, paint)
 
-                // Gambar teks
                 val text = "${detection.class_name} (${String.format("%.2f", detection.confidence)})"
                 val textWidth = textPaint.measureText(text)
 
                 var textX = x1
-                // Sesuaikan posisi teks agar tidak keluar dari batas bitmap
                 if (textX + textWidth > mutableBitmap.width) {
                     textX = mutableBitmap.width - textWidth - 5f
                 }

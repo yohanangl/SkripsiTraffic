@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 object RetrofitClient {
     // GANTI INI DENGAN URL PUBLIK NGROK ANDA SAAT INI!
     // Contoh: "https://ae69-34-16-195-156.ngrok-free.app/" (URL ini akan berubah!)
-    private const val BASE_URL = "https://245a-2404-c0-5430-00-299-79b.ngrok-free.app"
+    private const val BASE_URL = "https://c5be-114-122-9-140.ngrok-free.app"
 
     private val logging = HttpLoggingInterceptor().apply {
         setLevel(HttpLoggingInterceptor.Level.BODY)
