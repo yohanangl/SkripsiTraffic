@@ -19,11 +19,14 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-
-        // Inisialisasi tombol dan intent ke DetectionActivity
         val btnMulaiDeteksi: Button = findViewById(R.id.btnMulaiDeteksi)
         btnMulaiDeteksi.setOnClickListener {
             val intent = Intent(this, DetectionActivity::class.java)
+            startActivity(intent)
+        }
+        val btnInformasiRambu: Button = findViewById(R.id.btnInformasiRambu)
+        btnInformasiRambu.setOnClickListener {
+            val intent = Intent(this, InformasiRambuActivity::class.java)
             startActivity(intent)
         }
     }

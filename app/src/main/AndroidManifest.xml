@@ -24,6 +24,8 @@
     </activity>
 
         <activity android:name=".DetectionActivity" />
+        <activity android:name=".InformasiRambuActivity"
+            android:parentActivityName=".MainActivity" />
 
     </application>
 
