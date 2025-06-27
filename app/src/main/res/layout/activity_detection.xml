@@ -1,108 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical">
 
-    <LinearLayout
-        android:orientation="vertical"
+    <TextView
+        android:id="@+id/tvHeaderTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_horizontal"
-        android:padding="16dp">
+        android:background="@android:color/white"
+        android:gravity="center"
+        android:padding="16dp"
+        android:text="Deteksi Rambu Lalu Lintas"
+        android:textColor="@android:color/black"
+        android:textSize="20sp"
+        android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/tvTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Deteksi Rambu Lalu Lintas"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="10dp" />
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
         <androidx.camera.view.PreviewView
             android:id="@+id/previewView"
-            android:layout_width="390dp"
-            android:layout_height="550dp"
-            android:layout_marginBottom="12dp"
-            android:scaleType="fitCenter" />
-
-        <ImageView
-            android:id="@+id/imageViewResult"
-            android:layout_width="380dp"
-            android:layout_height="520dp"
-            android:layout_marginBottom="12dp"
-            android:scaleType="fitCenter"
-            android:visibility="gone"
-            android:background="#E0E0E0"/>
-
-        <LinearLayout
-            android:id="@+id/zoomButtonContainer"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="16dp"
-            android:gravity="center"
-            android:visibility="visible">
-
-            <Button
-                android:id="@+id/btnZoom1x"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Zoom 1x"
-                android:layout_marginEnd="8dp" />
-
-            <Button
-                android:id="@+id/btnZoom2x"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Zoom 2x"
-                android:layout_marginEnd="8dp" />
-
-            <Button
-                android:id="@+id/btnZoom4x"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Zoom 4x" />
-        </LinearLayout>
-
-
-        <LinearLayout
-            android:id="@+id/outputBox"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:background="#FFFF00"
-            android:elevation="4dp"
-            android:orientation="vertical"
-            android:padding="8dp"
-            android:visibility="gone">
-            <TextView
-                android:id="@+id/tvLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Rambu Dideteksi:"
-                android:textColor="#000000"
-                android:textStyle="bold" />
+            android:layout_height="match_parent" />
 
-            <TextView
-                android:id="@+id/tvOutput"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Informasi deteksi akan muncul di sini."
-                android:textColor="#000000"
-                android:textSize="14sp" />
-        </LinearLayout>
+        <com.example.home_traffic.OverlayView
+            android:id="@+id/overlayView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/controlButtonContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center"
+        android:background="@android:color/white">
 
         <Button
-            android:id="@+id/btnMulaiDeteksi"
-            android:layout_width="wrap_content"
+            android:id="@+id/btnZoomNormal"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Normal"
+            android:textColor="@android:color/black"
+            android:backgroundTint="#FFEB3B"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btnZoom2x"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Zoom 2x"
+            android:textColor="@android:color/black"
+            android:backgroundTint="#FFEB3B"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btnSelesaiDeteksi"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="Selesai Deteksi"
             android:backgroundTint="@android:color/holo_red_dark"
-            android:textColor="@android:color/white"
-            />
+            android:textColor="@android:color/white" />
 
     </LinearLayout>
-</ScrollView>
+
+</LinearLayout>
