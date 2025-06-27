@@ -156,22 +156,21 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             }
 
             val imageAnalyzer = ImageAnalysis.Builder()
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_BLOCK_PRODUCER) // Ini penting untuk mengelola antrean frame
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_BLOCK_PRODUCER)
                 .build()
                 .also {
                     it.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
                         val currentTime = System.currentTimeMillis()
                         // Hanya proses gambar jika tidak sedang ada proses DAN sudah melewati cooldown
                         if (!isProcessingImage.get() && (currentTime - lastImageSentTime > IMAGE_PROCESSING_COOLDOWN_MILLIS)) {
-                            isProcessingImage.set(true) // Set flag sedang memproses
-                            lastImageSentTime = currentTime // Catat waktu pengiriman
+                            isProcessingImage.set(true)
+                            lastImageSentTime = currentTime
 
                             sendImageToApi(imageProxy) {
-                                // Callback ini dipanggil setelah proses API selesai atau gagal
                                 isProcessingImage.set(false) // Reset flag
                             }
                         } else {
-                            imageProxy.close() // Penting: tutup ImageProxy jika tidak digunakan
+                            imageProxy.close()
                         }
                     }
                 }
@@ -184,6 +183,8 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     this, cameraSelector, preview, imageAnalyzer
                 )
                 cameraControl = camera.cameraControl
+
+                cameraControl?.setZoomRatio(4.0f)
 
                 val cameraInfo = camera.cameraInfo
                 val zoomState = cameraInfo.zoomState
@@ -382,28 +383,28 @@ class DetectionActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                     } else {
                                         Log.d("TTS_ONCE", "Rambu '$label' terdeteksi lagi, tapi sudah pernah diucapkan.")
                                         when (label) {
-                                            "AreaPutarBalik" -> infoText = "Area untuk putar balik."
-                                            "dilarangBelokKanan" -> infoText = "Dilarang belok kanan."
-                                            "dilarangBelokKiri" -> infoText = "Dilarang belok kiri."
-                                            "dilarangBerhenti" -> infoText = "Dilarang berhenti di area ini."
-                                            "dilarangParkir" -> infoText = "Dilarang parkir di area ini."
-                                            "dilarangPutarBalik" -> infoText = "Dilarang putar balik."
-                                            "hatihati" -> infoText = "Waspada! Perhatikan sekeliling."
-                                            "isyaratLaluLintas" -> infoText = "Perhatikan isyarat lampu lalu lintas."
-                                            "jalurKeretaApi" -> infoText = "Waspada perlintasan kereta api."
-                                            "jalurSepeda" -> infoText = "Area khusus sepeda."
-                                            "laranganLebih30Km" -> infoText = "Kecepatan maksimal 30 kilometer per jam."
-                                            "laranganMenyalip" -> infoText = "Dilarang menyalip kendaraan lain."
-                                            "pejalanKakiAnakAnak" -> infoText = "Waspada anak-anak di area pejalan kaki."
-                                            "penyempitanJalan-jembatan" -> infoText = "Jalan menyempit atau ada jembatan."
-                                            "peringatan-pejalanKakiZebraCross" -> infoText = "Waspada penyeberangan pejalan kaki (zebra cross)."
-                                            "perintahPejalanKaki" -> infoText = "Wajib bagi pejalan kaki."
-                                            "persimpanganEmpat" -> infoText = "Waspada persimpangan empat."
-                                            "persimpanganEmpatPrioritas" -> infoText = "Persimpangan empat dengan prioritas."
-                                            "persimpanganTigaKanan" -> infoText = "Waspada persimpangan T-kanan."
-                                            "persimpanganTigaKiri" -> infoText = "Waspada persimpangan T-kiri."
-                                            "simpangTigaKananPrioritas" -> infoText = "Simpang tiga kanan dengan prioritas."
-                                            "simpangTigaKiriPrioritas" -> infoText = "Simpang tiga kiri dengan prioritas."
+                                            "AreaPutarBalik" -> infoText = "Area khusus untuk melakukan putar balik."
+                                            "dilarangBelokKanan" -> infoText = "Dilarang belok ke arah kanan."
+                                            "dilarangBelokKiri" -> infoText = "Dilarang belok ke arah kiri."
+                                            "dilarangBerhenti" -> infoText = "Dilarang berhenti di sepanjang area ini."
+                                            "dilarangParkir" -> infoText = "Dilarang memarkir kendaraan di area ini."
+                                            "dilarangPutarBalik" -> infoText = "Dilarang melakukan putar balik di jalan ini."
+                                            "hatihati" -> infoText = "Hati-hati! Berkendara dengan waspada."
+                                            "isyaratLaluLintas" -> infoText = "Perhatikan lampu lalu lintas dan ikuti aturannya."
+                                            "jalurKeretaApi" -> infoText = "Waspada! Perlintasan kereta api di depan."
+                                            "jalurSepeda" -> infoText = "Jalur khusus untuk pengendara sepeda."
+                                            "laranganLebih30Km" -> infoText = "Batas kecepatan maksimum 30 km/jam."
+                                            "laranganMenyalip" -> infoText = "Dilarang menyalip kendaraan lain di jalan ini."
+                                            "pejalanKakiAnakAnak" -> infoText = "Waspada! Anak-anak melintas di area ini."
+                                            "penyempitanJalan-jembatan" -> infoText = "Jalan menyempit atau terdapat jembatan di depan."
+                                            "peringatan-pejalanKakiZebraCross" -> infoText = "Waspadai penyeberangan pejalan kaki (zebra cross)."
+                                            "perintahPejalanKaki" -> infoText = "Pejalan kaki wajib menggunakan jalur yang telah ditentukan."
+                                            "persimpanganEmpat" -> infoText = "Perhatikan! Persimpangan empat di depan."
+                                            "persimpanganEmpatPrioritas" -> infoText = "Persimpangan empat dengan prioritas tertentu."
+                                            "persimpanganTigaKanan" -> infoText = "Waspada! Persimpangan tiga ke arah kanan."
+                                            "persimpanganTigaKiri" -> infoText = "Waspada! Persimpangan tiga ke arah kiri."
+                                            "simpangTigaKananPrioritas" -> infoText = "Simpang tiga kanan dengan prioritas kendaraan tertentu."
+                                            "simpangTigaKiriPrioritas" -> infoText = "Simpang tiga kiri dengan prioritas kendaraan tertentu."
                                             else -> infoText = "Informasi rambu tidak tersedia."
                                         }
                                         tvOutput.text = "Kepercayaan: ${String.format("%.2f", confidence * 100)}%\n$infoText"

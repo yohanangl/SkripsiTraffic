@@ -22,8 +22,8 @@
 
         <androidx.camera.view.PreviewView
             android:id="@+id/previewView"
-            android:layout_width="380dp"
-            android:layout_height="520dp"
+            android:layout_width="390dp"
+            android:layout_height="550dp"
             android:layout_marginBottom="12dp"
             android:scaleType="fitCenter" />
 
