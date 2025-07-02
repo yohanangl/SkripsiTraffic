@@ -62,27 +62,6 @@
                 <ImageView
                     android:layout_width="60dp"
                     android:layout_height="60dp"
-                    android:src="@drawable/rambubundaran" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Bundaran"
-                    android:gravity="center"
-                    android:textSize="12sp"
-                    android:textColor="@android:color/black" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_rowWeight="1"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="8dp">
-                <ImageView
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
                     android:src="@drawable/rambudilarangbelokkanan" />
                 <TextView
                     android:layout_width="wrap_content"
@@ -490,91 +469,6 @@
                     android:textSize="12sp"
                     android:textColor="@android:color/black" />
             </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_rowWeight="1"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="8dp">
-                <ImageView
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
-                    android:src="@drawable/tikunganggandakanan" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Rambu Tikungan Ganda Kanan"
-                    android:gravity="center"
-                    android:textSize="12sp"
-                    android:textColor="@android:color/black" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_rowWeight="1"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="8dp">
-                <ImageView
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
-                    android:src="@drawable/tikungankanan" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Rambu Tikungan Kanan"
-                    android:gravity="center"
-                    android:textSize="12sp"
-                    android:textColor="@android:color/black" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_rowWeight="1"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="8dp">
-                <ImageView
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
-                    android:src="@drawable/tikungantajamgandakanan" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Rambu Tikungan Tajam Ganda Kanan"
-                    android:gravity="center"
-                    android:textSize="12sp"
-                    android:textColor="@android:color/black" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_rowWeight="1"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="8dp">
-                <ImageView
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
-                    android:src="@drawable/tikungantajamkiri" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Rambu Tikungan Tajam Kiri"
-                    android:gravity="center"
-                    android:textSize="12sp"
-                    android:textColor="@android:color/black" />
-            </LinearLayout>
-
         </GridLayout>
 
     </LinearLayout>
